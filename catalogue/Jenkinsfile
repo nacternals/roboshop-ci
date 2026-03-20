@@ -1,0 +1,29 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Info') {
+            steps {
+                sh 'pwd'
+                sh 'ls -la'
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                dir('catalogue') {
+                    sh 'npm install'
+                }
+            }
+        }
+
+        stage('Package') {
+            steps {
+                dir('catalogue') {
+                    sh 'tar -czf catalogue.tar.gz *'
+                    sh 'ls -lh catalogue.tar.gz'
+                }
+            }
+        }
+    }
+}
