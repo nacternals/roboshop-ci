@@ -8,10 +8,10 @@ pipeline {
     environment {
         APP_DIR       = 'catalogue'
         NEXUS_URL     = 'http://ec2-44-204-27-33.compute-1.amazonaws.com:8081'
-        NEXUS_REPO    = 'catalogue'   // hosted maven2 repo name in Nexus
+        NEXUS_REPO    = 'catalogue'
         GROUP_ID      = 'com.roboshop'
         PACKAGING     = 'tar.gz'
-        NEXUS_CRED_ID = 'nexus-creds' // Jenkins credentials ID
+        NEXUS_CRED_ID = 'nexus-creds'
     }
 
     stages {
@@ -65,44 +65,38 @@ pipeline {
 
         stage('Package Artifact') {
             steps {
-                dir("${APP_DIR}") {
-                    sh '''
-                        rm -f "${FILE_NAME}"
+                sh '''
+                    rm -f "${FILE_NAME}"
 
-                        tar \
-                          --exclude=Jenkinsfile \
-                          --exclude=.git \
-                          --exclude=.gitignore \
-                          --exclude="${FILE_NAME}" \
-                          -czf "${FILE_NAME}" .
+                    tar \
+                      --exclude=.git \
+                      --exclude=.gitignore \
+                      -czf "${FILE_NAME}" -C "${APP_DIR}" .
 
-                        ls -lh "${FILE_NAME}"
-                    '''
-                }
+                    ls -lh "${FILE_NAME}"
+                '''
             }
         }
 
         stage('Upload to Nexus (Maven2 Style)') {
             steps {
-                dir("${APP_DIR}") {
-                    withCredentials([usernamePassword(
-                        credentialsId: "${NEXUS_CRED_ID}",
-                        usernameVariable: 'NEXUS_USER',
-                        passwordVariable: 'NEXUS_PASS'
-                    )]) {
-                        sh '''
-                            curl -v -u "${NEXUS_USER}:${NEXUS_PASS}" \
-                              --upload-file "${FILE_NAME}" \
-                              "${NEXUS_URL}/repository/${NEXUS_REPO}/${NEXUS_PATH}"
-                        '''
-                    }
+                withCredentials([usernamePassword(
+                    credentialsId: "${NEXUS_CRED_ID}",
+                    usernameVariable: 'NEXUS_USER',
+                    passwordVariable: 'NEXUS_PASS'
+                )]) {
+                    sh '''
+                        curl -v -u "${NEXUS_USER}:${NEXUS_PASS}" \
+                          --upload-file "${FILE_NAME}" \
+                          "${NEXUS_URL}/repository/${NEXUS_REPO}/${NEXUS_PATH}"
+                    '''
                 }
             }
         }
 
         stage('Archive in Jenkins') {
             steps {
-                archiveArtifacts artifacts: "${APP_DIR}/${FILE_NAME}", fingerprint: true
+                archiveArtifacts artifacts: "${FILE_NAME}", fingerprint: true
             }
         }
     }
