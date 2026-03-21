@@ -5,6 +5,15 @@ pipeline {
         skipDefaultCheckout(false)
     }
 
+    environment {
+        APP_DIR        = 'catalogue'
+        NEXUS_URL      = 'http://ec2-44-204-27-33.compute-1.amazonaws.com:8081'
+        NEXUS_REPO     = 'catalogue'              // your hosted maven2 repo name
+        GROUP_ID       = 'com.roboshop'               // change if needed
+        PACKAGING      = 'tar.gz'
+        NEXUS_CRED_ID  = 'nexus-creds'                // Jenkins credentials id
+    }
+
     stages {
         stage('Clean Workspace') {
             steps {
@@ -27,6 +36,25 @@ pipeline {
             }
         }
 
+        stage('Read Application Metadata') {
+            steps {
+                dir("${APP_DIR}") {
+                    script {
+                        env.APP_NAME    = sh(script: "node -p \"require('./package.json').name\"", returnStdout: true).trim()
+                        env.APP_VERSION = sh(script: "node -p \"require('./package.json').version\"", returnStdout: true).trim()
+                        env.GROUP_PATH  = env.GROUP_ID.replace('.', '/')
+                        env.FILE_NAME   = "${env.APP_NAME}-${env.APP_VERSION}.${env.PACKAGING}"
+                        env.NEXUS_PATH  = "${env.GROUP_PATH}/${env.APP_NAME}/${env.APP_VERSION}/${env.FILE_NAME}"
+
+                        echo "APP_NAME    = ${env.APP_NAME}"
+                        echo "APP_VERSION = ${env.APP_VERSION}"
+                        echo "FILE_NAME   = ${env.FILE_NAME}"
+                        echo "NEXUS_PATH  = ${env.NEXUS_PATH}"
+                    }
+                }
+            }
+        }
+
         stage('Install Dependencies') {
             steps {
                 dir('catalogue') {
@@ -35,20 +63,59 @@ pipeline {
             }
         }
 
-        stage('Package') {
+        stage('Package Artifact') {
             steps {
-                dir('catalogue') {
+                dir("${APP_DIR}") {
                     sh '''
-                        rm -f catalogue.tar.gz
+                        rm -f ${FILE_NAME}
+
                         tar \
-                        --exclude=Jenkinsfile \
-                        --exclude=.git \
-                        --exclude=catalogue.tar.gz \
-                        -czf catalogue.tar.gz *
-                        ls -lh catalogue.tar.gz
+                          --exclude=Jenkinsfile \
+                          --exclude=.git \
+                          --exclude=.gitignore \
+                          --exclude=${FILE_NAME} \
+                          -czf ${FILE_NAME} .
+
+                        ls -lh ${FILE_NAME}
                     '''
                 }
             }
         }
+
+        stage('Upload to Nexus (Maven2 Style)') {
+            steps {
+                dir("${APP_DIR}") {
+                    withCredentials([usernamePassword(
+                        credentialsId: "${NEXUS_CRED_ID}",
+                        usernameVariable: 'NEXUS_USER',
+                        passwordVariable: 'NEXUS_PASS'
+                    )]) {
+                        sh '''
+                            curl -v -u "${NEXUS_USER}:${NEXUS_PASS}" \
+                              --upload-file "${FILE_NAME}" \
+                              "${NEXUS_URL}/repository/${NEXUS_REPO}/${NEXUS_PATH}"
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Archive in Jenkins') {
+            steps {
+                archiveArtifacts artifacts: "${APP_DIR}/${FILE_NAME}", fingerprint: true
+            }
+        }
+
+        post {
+            success {
+                echo "Artifact uploaded successfully:"
+                echo "${NEXUS_URL}/repository/${NEXUS_REPO}/${NEXUS_PATH}"
+            }
+            failure {
+                echo "Build or upload failed."
+            }
+        }
+   
+
     }
 }
