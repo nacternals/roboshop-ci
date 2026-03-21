@@ -6,12 +6,12 @@ pipeline {
     }
 
     environment {
-        APP_DIR        = 'catalogue'
-        NEXUS_URL      = 'http://ec2-44-204-27-33.compute-1.amazonaws.com:8081'
-        NEXUS_REPO     = 'catalogue'              // your hosted maven2 repo name
-        GROUP_ID       = 'com.roboshop'               // change if needed
-        PACKAGING      = 'tar.gz'
-        NEXUS_CRED_ID  = 'nexus-creds'                // Jenkins credentials id
+        APP_DIR       = 'catalogue'
+        NEXUS_URL     = 'http://ec2-44-204-27-33.compute-1.amazonaws.com:8081'
+        NEXUS_REPO    = 'catalogue'   // hosted maven2 repo name in Nexus
+        GROUP_ID      = 'com.roboshop'
+        PACKAGING     = 'tar.gz'
+        NEXUS_CRED_ID = 'nexus-creds' // Jenkins credentials ID
     }
 
     stages {
@@ -57,7 +57,7 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                dir('catalogue') {
+                dir("${APP_DIR}") {
                     sh 'npm install'
                 }
             }
@@ -67,16 +67,16 @@ pipeline {
             steps {
                 dir("${APP_DIR}") {
                     sh '''
-                        rm -f ${FILE_NAME}
+                        rm -f "${FILE_NAME}"
 
                         tar \
                           --exclude=Jenkinsfile \
                           --exclude=.git \
                           --exclude=.gitignore \
-                          --exclude=${FILE_NAME} \
-                          -czf ${FILE_NAME} .
+                          --exclude="${FILE_NAME}" \
+                          -czf "${FILE_NAME}" .
 
-                        ls -lh ${FILE_NAME}
+                        ls -lh "${FILE_NAME}"
                     '''
                 }
             }
@@ -105,17 +105,15 @@ pipeline {
                 archiveArtifacts artifacts: "${APP_DIR}/${FILE_NAME}", fingerprint: true
             }
         }
+    }
 
-        post {
-            success {
-                echo "Artifact uploaded successfully:"
-                echo "${NEXUS_URL}/repository/${NEXUS_REPO}/${NEXUS_PATH}"
-            }
-            failure {
-                echo "Build or upload failed."
-            }
+    post {
+        success {
+            echo "Artifact uploaded successfully:"
+            echo "${NEXUS_URL}/repository/${NEXUS_REPO}/${NEXUS_PATH}"
         }
-   
-
+        failure {
+            echo "Build or upload failed."
+        }
     }
 }
