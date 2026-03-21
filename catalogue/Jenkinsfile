@@ -1,10 +1,27 @@
 pipeline {
- agent { label 'agent_01' }
-    // agent any
+    agent { label 'agent_01' }
+
+    options {
+        skipDefaultCheckout(false)
+    }
 
     stages {
+        stage('Clean Workspace') {
+            steps {
+                cleanWs()
+            }
+        }
+
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
         stage('Info') {
             steps {
+                sh 'hostname'
+                sh 'whoami'
                 sh 'pwd'
                 sh 'ls -la'
             }
@@ -18,12 +35,14 @@ pipeline {
             }
         }
 
-
         stage('Package') {
             steps {
                 dir('catalogue') {
-                    sh 'tar -czf catalogue.tar.gz *'
-                    sh 'ls -lh catalogue.tar.gz'
+                    sh '''
+                        rm -f catalogue.tar.gz
+                        tar -czf catalogue.tar.gz Jenkinsfile README.md db node_modules package-lock.json package.json server.js
+                        ls -lh catalogue.tar.gz
+                    '''
                 }
             }
         }
