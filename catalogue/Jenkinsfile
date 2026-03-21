@@ -40,7 +40,11 @@ pipeline {
                 dir('catalogue') {
                     sh '''
                         rm -f catalogue.tar.gz
-                        tar -czf catalogue.tar.gz Jenkinsfile README.md db node_modules package-lock.json package.json server.js
+                        tar \
+                        --exclude=Jenkinsfile \
+                        --exclude=.git \
+                        --exclude=catalogue.tar.gz \
+                        -czf catalogue.tar.gz *
                         ls -lh catalogue.tar.gz
                     '''
                 }
