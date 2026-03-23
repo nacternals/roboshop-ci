@@ -3,11 +3,12 @@ pipeline {
 
     options {
         skipDefaultCheckout(false)
+        ansiColor('xterm')
     }
 
     environment {
         APP_DIR       = 'catalogue'
-        NEXUS_URL     = 'http://ec2-44-204-27-33.compute-1.amazonaws.com:8081'
+        NEXUS_URL     = 'http://ec2-18-234-190-232.compute-1.amazonaws.com:8081'
         NEXUS_REPO    = 'catalogue'
         GROUP_ID      = 'com.roboshop'
         PACKAGING     = 'tar.gz'
